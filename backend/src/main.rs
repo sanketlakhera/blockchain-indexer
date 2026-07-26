@@ -1,6 +1,9 @@
 use tracing::info;
 use alloy::providers::{Provider, ProviderBuilder};
 use anyhow::Context;
+
+use alloy::eips::BlockNumberOrTag;
+use alloy::rpc::types::BlockTransactionsKind;
 // standard rust main fn cannot run async code directly
 // we use #[tokio::main] to convert it into an async main fn
 #[tokio::main]
@@ -22,8 +25,14 @@ async fn main() -> anyhow::Result<()> {
 
     // get latest block number
     let latest_block = provider.get_block_number().await?;
-    
     info!("Latest block number: {}", latest_block);
+    
+
+    // fetch full block details including full transaction objects
+    let block = provider.get_block_by_number(BlockNumberOrTag::Latest).await?.context("Block not found")?;
+    let header = &block.header;
+    info!("----------------------------------------");
+    info!("Block Hash: {}", header.hash);
 
     Ok(())
 }
