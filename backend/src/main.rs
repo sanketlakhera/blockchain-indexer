@@ -46,15 +46,30 @@ async fn main() -> anyhow::Result<()> {
     if let Some(txn) = block.transactions.as_transactions() {
         info!("Total transactions in Block: {}", txn.len());
 
-        for (idx, tx) in txn.iter().take(5).enumerate() {
-            info!(
-                "Tx #{}: Hash={:?}, From={:?}, To={:?}, Value={} wei",
-                idx,
-                tx.inner.tx_hash(),
-                tx.inner.signer(),
-                tx.inner.to(),
-                tx.inner.value()
-            );
+        // for (idx, tx) in txn.iter().take(5).enumerate() {
+        //     info!(
+        //         "Tx #{}: Hash={:?}, From={:?}, To={:?}, Value={} wei",
+        //         idx,
+        //         tx.inner.tx_hash(),
+        //         tx.inner.signer(),
+        //         tx.inner.to(),
+        //         tx.inner.value()
+        //     );
+        // }
+
+        if let Some(first_tx) = txn.first() {
+            let tx_hash = first_tx.inner.tx_hash();
+            info!("Fetching receipt for tx Hash: {:?}", tx_hash);
+            if let Some(receipt) = provider.get_transaction_receipt(*tx_hash).await? {
+                info!("Txn");
+                info!("Execution Status: {:?}", receipt.status());
+                info!("Gas used: {}", receipt.gas_used);
+                info!("Total Logs Emitted: {}", receipt.inner.logs().len());
+
+                for (idx, log) in receipt.inner.logs().iter().enumerate() {
+                    info!("Log #{}: Emitter Address={:?}, Topics={}", idx, log.address(), log.topics().len());
+                }
+            }
         }
     }
     Ok(())
