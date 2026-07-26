@@ -1,6 +1,6 @@
-use tracing::info;
 use alloy::providers::{Provider, ProviderBuilder};
 use anyhow::Context;
+use tracing::info;
 
 use alloy::eips::BlockNumberOrTag;
 use alloy::rpc::types::BlockTransactionsKind;
@@ -26,10 +26,12 @@ async fn main() -> anyhow::Result<()> {
     // get latest block number
     let latest_block = provider.get_block_number().await?;
     info!("Latest block number: {}", latest_block);
-    
 
     // fetch full block details including full transaction objects
-    let block = provider.get_block_by_number(BlockNumberOrTag::Latest).await?.context("Block not found")?;
+    let block = provider
+        .get_block_by_number(BlockNumberOrTag::Latest)
+        .await?
+        .context("Block not found")?;
     let header = &block.header;
     info!("----------------------------------------");
     info!("Block Hash: {}", header.hash);
