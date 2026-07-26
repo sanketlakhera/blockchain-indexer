@@ -31,6 +31,7 @@ async fn main() -> anyhow::Result<()> {
     // fetch full block details including full transaction objects
     let block = provider
         .get_block_by_number(BlockNumberOrTag::Latest)
+        .full() // in alloy we need to chain .full() to get full transaction objects, else it returns only the hashes
         .await?
         .context("Block not found")?;
     let header = &block.header;
