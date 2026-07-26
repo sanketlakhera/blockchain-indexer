@@ -15,7 +15,7 @@ async fn main() -> anyhow::Result<()> {
     // get url from env var
     let rpc_url_str = std::env::var("ETH_RPC_URL").context("ETH_RPC_URL environment variable")?;
     let rpc_url = rpc_url_str.parse()?;
-    info!("Using RPC URL: {}", rpc_url);
+    // info!("Using RPC URL: {}", rpc_url);
 
     // build http provider
     let provider = ProviderBuilder::new().connect_http(rpc_url);
