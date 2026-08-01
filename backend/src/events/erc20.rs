@@ -35,7 +35,6 @@ impl DecodedTransfer {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -43,7 +42,8 @@ mod tests {
     #[test]
     fn test_erc20_transfer_signature() {
         // verify that the computed event signature hash matches the ERC20 standard
-        let expected_signature = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+        let expected_signature =
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
         assert_eq!(Transfer::SIGNATURE_HASH.to_string(), expected_signature);
     }
 }

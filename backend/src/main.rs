@@ -13,7 +13,6 @@ use backend::fetcher::BlockFetcher;
 // we use #[tokio::main] to convert it into an async main fn
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-
     //initialize log tracing
     tracing_subscriber::fmt::init();
     info!("Indexer application starting up...");
@@ -35,25 +34,29 @@ async fn main() -> anyhow::Result<()> {
     if let Some(txns) = block.transactions.as_transactions() {
         info!("Total transactions in block: {}", txns.len());
 
-        // for each transaction in the block, 
+        // for each transaction in the block,
         for tx in txns {
             let tx_hash = tx.inner.tx_hash();
             let receipt = fetcher.fetch_tx_receipt(*tx_hash).await?;
-                let logs = receipt.inner.logs();
-                if !logs.is_empty() {
-                    info!("--- Smart Contract tx Hash: {:?} ---", tx_hash);
-                    for (idx, log) in logs.iter().enumerate() {
-                        if let Some(transfer) = DecodedTransfer::from_log(log) {
-                            info!(
-                                "Log #{}: Decoded ERC20 Transfer - From: {:?}, To: {:?}, Value: {}",
-                                idx, transfer.from, transfer.to, transfer.value
-                            );
-                        } else {
-                            info!("Log #{}: Non-Transfer Log (Emitter={:?})", idx, log.address());   
-                        }
+            let logs = receipt.inner.logs();
+            if !logs.is_empty() {
+                info!("--- Smart Contract tx Hash: {:?} ---", tx_hash);
+                for (idx, log) in logs.iter().enumerate() {
+                    if let Some(transfer) = DecodedTransfer::from_log(log) {
+                        info!(
+                            "Log #{}: Decoded ERC20 Transfer - From: {:?}, To: {:?}, Value: {}",
+                            idx, transfer.from, transfer.to, transfer.value
+                        );
+                    } else {
+                        info!(
+                            "Log #{}: Non-Transfer Log (Emitter={:?})",
+                            idx,
+                            log.address()
+                        );
                     }
-                    break; // stop after inspecting the first transaction with logs
                 }
+                break; // stop after inspecting the first transaction with logs
+            }
         }
     }
 
