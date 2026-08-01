@@ -9,7 +9,7 @@ Learned so far
 
 
 ### ERC20 transfer event
-Think bank transactions. when we transfer money from "A" to "B", we actually do not transfer money. we just update the balances of A and B in database. Etherum is like one giant database. Instead of bank it is owned by thousands of computers. Ethereum does not no about currency (like USDT, SHIBA etc.).
+Think bank transactions. when we transfer money from "A" to "B", we actually do not transfer money. we just update the balances of A and B in database. Etherum is like one giant database. Instead of bank it is owned by thousands of computers. Ethereum does not know about currency (like USDT, SHIBA etc.).
 
 So ERC20 standard specifies an "Transfer" event. Whenever A sends token to B, contract emits Transfer event. Everyone agrees on this standard.
 
