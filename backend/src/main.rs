@@ -1,85 +1,61 @@
-use alloy::providers::{Provider, ProviderBuilder};
-use anyhow::Context;
+// use alloy::providers::{Provider, ProviderBuilder};
+// use anyhow::Context;
 use tracing::info;
 
 // use alloy::consensus::Transaction;
-use alloy::eips::BlockNumberOrTag;
+// use alloy::eips::BlockNumberOrTag;
 use backend::events::erc20::DecodedTransfer;
+
+use backend::config::Config;
+use backend::fetcher::BlockFetcher;
 
 // standard rust main fn cannot run async code directly
 // we use #[tokio::main] to convert it into an async main fn
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // load variables from .env
-    dotenvy::dotenv().ok();
 
     //initialize log tracing
     tracing_subscriber::fmt::init();
     info!("Indexer application starting up...");
 
-    // get url from env var
-    let rpc_url_str = std::env::var("ETH_RPC_URL").context("ETH_RPC_URL environment variable")?;
-    let rpc_url = rpc_url_str.parse()?;
-    // info!("Using RPC URL: {}", rpc_url);
+    // load config
+    let config = Config::from_env()?;
 
-    // build http provider
-    let provider = ProviderBuilder::new().connect_http(rpc_url);
+    // initialize block fetcher
+    let fetcher = BlockFetcher::new(&config.eth_rpc_url)?;
 
-    // get latest block number
-    let latest_block = provider.get_block_number().await?;
-    info!("Latest block number: {}", latest_block);
+    // fetch latest block
+    let latest_block_num = fetcher.fetch_latest_block_number().await?;
+    info!("Latest block number: {}", latest_block_num);
 
-    // fetch full block details including full transaction objects
-    let block = provider
-        .get_block_by_number(BlockNumberOrTag::Latest)
-        .full() // in alloy we need to chain .full() to get full transaction objects, else it returns only the hashes
-        .await?
-        .context("Block not found")?;
-    let header = &block.header;
-    info!("----------------------------------------");
-    info!("Block Hash: {:?}", header.hash);
-    info!("Parent Hash: {:?}", header.parent_hash);
-    info!("Timestamp: {}", header.timestamp);
-    info!("Gas Used: {}", header.gas_used);
-    info!("----------------------------------------");
+    let block = fetcher.fetch_latest_full_block().await?;
+    info!("Latest block hash: {:?}", block.header.hash);
 
-    // inspect transaction list
-    if let Some(txn) = block.transactions.as_transactions() {
-        info!("Total transactions in Block: {}", txn.len());
+    // process transactions and events
+    if let Some(txns) = block.transactions.as_transactions() {
+        info!("Total transactions in block: {}", txns.len());
 
-        // for (idx, tx) in txn.iter().take(5).enumerate() {
-        //     info!(
-        //         "Tx #{}: Hash={:?}, From={:?}, To={:?}, Value={} wei",
-        //         idx,
-        //         tx.inner.tx_hash(),
-        //         tx.inner.signer(),
-        //         tx.inner.to(),
-        //         tx.inner.value()
-        //     );
-        // }
-
-        if let Some(first_tx) = txn.first() {
-            let tx_hash = first_tx.inner.tx_hash();
-            info!("Fetching receipt for tx Hash: {:?}", tx_hash);
-            if let Some(receipt) = provider.get_transaction_receipt(*tx_hash).await? {
-                info!("Txn");
-                info!("Execution Status: {:?}", receipt.status());
-                info!("Gas used: {}", receipt.gas_used);
-                info!("Total Logs Emitted: {}", receipt.inner.logs().len());
-
-                for (idx, log) in receipt.inner.logs().iter().enumerate() {
-                    // here we will attempt to decode log as ERC20 Transfer event
-                    if let Some(decoded) = DecodedTransfer::from_log(log) {
-                        info!(
-                            " [ERC20 Transfer Decoded] From= {:?}, To= {:?}, Value= {} units", decoded.from, decoded.to, decoded.value
-                        );
-                    } else {
-                     info!(" Log #{}: Non-Transfer Log (Emitter={:?})", idx, log.address());   
+        // for each transaction in the block, 
+        for tx in txns {
+            let tx_hash = tx.inner.tx_hash();
+            let receipt = fetcher.fetch_tx_receipt(*tx_hash).await?;
+                let logs = receipt.inner.logs();
+                if !logs.is_empty() {
+                    info!("--- Smart Contract tx Hash: {:?} ---", tx_hash);
+                    for (idx, log) in logs.iter().enumerate() {
+                        if let Some(transfer) = DecodedTransfer::from_log(log) {
+                            info!(
+                                "Log #{}: Decoded ERC20 Transfer - From: {:?}, To: {:?}, Value: {}",
+                                idx, transfer.from, transfer.to, transfer.value
+                            );
+                        } else {
+                            info!("Log #{}: Non-Transfer Log (Emitter={:?})", idx, log.address());   
+                        }
                     }
-                    info!("Log #{}: Emitter Address={:?}, Topics={}", idx, log.address(), log.topics().len());
+                    break; // stop after inspecting the first transaction with logs
                 }
-            }
         }
     }
+
     Ok(())
 }

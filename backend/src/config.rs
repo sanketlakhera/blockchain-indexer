@@ -9,6 +9,8 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> anyhow::Result<Self> {
+        // load variables from .env
+        dotenvy::dotenv().ok();
         let eth_rpc_url = std::env::var("ETH_RPC_URL")
             .context("ETH_RPC_URL environment variable")?;
         Ok(Self { eth_rpc_url })
