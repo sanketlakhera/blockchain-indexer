@@ -2,9 +2,19 @@ use alloy::providers::{Provider, ProviderBuilder};
 use anyhow::Context;
 use tracing::info;
 
-use alloy::consensus::Transaction;
+// use alloy::consensus::Transaction;
 use alloy::eips::BlockNumberOrTag;
-use alloy::rpc::types::BlockTransactionsKind;
+// use alloy::rpc::types::BlockTransactionsKind;
+use alloy::sol;
+use alloy::sol_types::SolEvent;
+
+
+// alloy macros
+// here we are defining an ERC20 Transfer event
+sol! {
+    // Transfer event from ERC20 contract
+    event Transfer(address indexed from, address indexed to, uint256 value);
+}
 // standard rust main fn cannot run async code directly
 // we use #[tokio::main] to convert it into an async main fn
 #[tokio::main]
@@ -67,6 +77,14 @@ async fn main() -> anyhow::Result<()> {
                 info!("Total Logs Emitted: {}", receipt.inner.logs().len());
 
                 for (idx, log) in receipt.inner.logs().iter().enumerate() {
+                    // here we will attempt to decode log as ERC20 Transfer event
+                    if let Ok(decoded) = Transfer::decode_raw_log(log.topics(), log.data().data.as_ref()) {
+                        info!(
+                            " [ERC20 Transfer Decoded] From= {:?}, To= {:?}, Value= {} units", decoded.from, decoded.to, decoded.value
+                        );
+                    } else {
+                     info!(" Log #{}: Non-Transfer Log (Emitter={:?})", idx, log.address());   
+                    }
                     info!("Log #{}: Emitter Address={:?}, Topics={}", idx, log.address(), log.topics().len());
                 }
             }
