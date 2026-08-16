@@ -1,6 +1,6 @@
-use sqlx::postgres::PgPoolOptions;
-use sqlx::PgPool;
 use anyhow::Result;
+use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 
 pub async fn init_pool(database_url: &str) -> Result<PgPool> {
     let pool = PgPoolOptions::new()
@@ -9,4 +9,10 @@ pub async fn init_pool(database_url: &str) -> Result<PgPool> {
         .await?;
 
     Ok(pool)
+}
+
+pub async fn run_migration(pool: &PgPool) -> Result<()> {
+    sqlx::migrate!("./migrations").run(pool).await?;
+
+    Ok(())
 }

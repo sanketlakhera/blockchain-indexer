@@ -1,4 +1,4 @@
 pub mod config;
+pub mod db;
 pub mod events;
 pub mod fetcher;
-pub mod db;

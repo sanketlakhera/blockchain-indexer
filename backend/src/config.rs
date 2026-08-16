@@ -16,6 +16,9 @@ impl Config {
         let eth_rpc_url =
             std::env::var("ETH_RPC_URL").context("ETH_RPC_URL environment variable")?;
         let db_url = std::env::var("DATABASE_URL").context("DATABASE_URL environment variable")?;
-        Ok(Self { eth_rpc_url, db_url })
+        Ok(Self {
+            eth_rpc_url,
+            db_url,
+        })
     }
 }

@@ -7,8 +7,8 @@ use tracing::info;
 use backend::events::erc20::DecodedTransfer;
 
 use backend::config::Config;
-use backend::fetcher::BlockFetcher;
 use backend::db;
+use backend::fetcher::BlockFetcher;
 
 // standard rust main fn cannot run async code directly
 // we use #[tokio::main] to convert it into an async main fn
@@ -24,6 +24,8 @@ async fn main() -> anyhow::Result<()> {
     // init db
     let pool = db::init_pool(&config.db_url).await?;
     info!("Database connection established");
+    db::run_migration(&pool).await?;
+    info!("Database migrations completed");
 
     // initialize block fetcher
     let fetcher = BlockFetcher::new(&config.eth_rpc_url)?;
