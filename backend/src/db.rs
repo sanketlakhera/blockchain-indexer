@@ -1,7 +1,7 @@
 use alloy::primitives::{Address, B256, U256};
 use anyhow::Result;
-use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
+use sqlx::{PgConnection, PgPool};
 
 pub async fn init_pool(database_url: &str) -> Result<PgPool> {
     let pool = PgPoolOptions::new()
@@ -20,7 +20,7 @@ pub async fn run_migration(pool: &PgPool) -> Result<()> {
 
 // insert block idempotent with on conflict do nothing
 pub async fn insert_block(
-    pool: &PgPool,
+    conn: &mut PgConnection,
     number: i64,
     hash: B256,
     parent_hash: B256,
@@ -38,7 +38,7 @@ pub async fn insert_block(
     .bind(format!("{:#x}", parent_hash))
     .bind(timestamp)
     .bind(tx_count)
-    .execute(pool)
+    .execute(conn)
     .await?;
 
     Ok(())
@@ -46,7 +46,7 @@ pub async fn insert_block(
 
 // insert transaction
 pub async fn insert_transaction(
-    pool: &PgPool,
+    conn: &mut PgConnection,
     tx_hash: B256,
     block_number: i64,
     from: Address,
@@ -72,7 +72,7 @@ pub async fn insert_transaction(
     .bind(value.to_string())
     .bind(gas_price_str)
     .bind(tx_index)
-    .execute(pool)
+    .execute(conn)
     .await?;
 
     Ok(())
@@ -80,7 +80,7 @@ pub async fn insert_transaction(
 
 // insert ERC20 Transfer
 pub async fn insert_erc20_transfer(
-    pool: &PgPool,
+    conn: &mut PgConnection,
     tx_hash: B256,
     block_number: i64,
     contract_address: Address,
@@ -102,7 +102,7 @@ pub async fn insert_erc20_transfer(
     .bind(format!("{:#x}", to))
     .bind(amount.to_string())
     .bind(log_index)
-    .execute(pool)
+    .execute(conn)
     .await?;
 
     Ok(())

@@ -4,6 +4,8 @@ use tracing::info;
 
 // use alloy::consensus::Transaction;
 // use alloy::eips::BlockNumberOrTag;
+use alloy::consensus::Transaction;
+use alloy::primitives::U256;
 use backend::events::erc20::DecodedTransfer;
 
 use backend::config::Config;
@@ -26,6 +28,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Database connection established");
     db::run_migration(&pool).await?;
     info!("Database migrations completed");
+    let mut tx_pool = pool.begin().await?;
 
     // initialize block fetcher
     let fetcher = BlockFetcher::new(&config.eth_rpc_url)?;
@@ -37,14 +40,44 @@ async fn main() -> anyhow::Result<()> {
     let block = fetcher.fetch_latest_full_block().await?;
     info!("Latest block hash: {:?}", block.header.hash);
 
+    let block_num = block.header.number as i64;
+    let tx_count = block.transactions.len() as i32;
+    db::insert_block(
+        &mut *tx_pool,
+        block_num,
+        block.header.hash,
+        block.header.parent_hash,
+        block.header.timestamp as i64,
+        tx_count,
+    )
+    .await?;
+
     // process transactions and events
     if let Some(txns) = block.transactions.as_transactions() {
-        info!("Total transactions in block: {}", txns.len());
+        // info!("Total transactions in block: {}", txns.len());
 
         // for each transaction in the block,
-        for tx in txns {
-            let tx_hash = tx.inner.tx_hash();
-            let receipt = fetcher.fetch_tx_receipt(*tx_hash).await?;
+        for (tx_idx, tx) in txns.iter().enumerate() {
+            let tx_hash = *tx.inner.tx_hash();
+            let from_addr = tx.inner.signer();
+            let to_addr = tx.inner.to();
+            let val = tx.inner.value();
+            let gas_price = tx.inner.gas_price().map(U256::from);
+            // let tx_idx = tx.inner.transaction_index();
+
+            db::insert_transaction(
+                &mut *tx_pool,
+                tx_hash,
+                block_num,
+                from_addr,
+                to_addr,
+                val,
+                gas_price,
+                tx_idx as i32,
+            )
+            .await?;
+
+            let receipt = fetcher.fetch_tx_receipt(tx_hash).await?;
             let logs = receipt.inner.logs();
             if !logs.is_empty() {
                 info!("--- Smart Contract tx Hash: {:?} ---", tx_hash);
@@ -54,6 +87,17 @@ async fn main() -> anyhow::Result<()> {
                             "Log #{}: Decoded ERC20 Transfer - From: {:?}, To: {:?}, Value: {}",
                             idx, transfer.from, transfer.to, transfer.value
                         );
+                        db::insert_erc20_transfer(
+                            &mut *tx_pool,
+                            tx_hash,
+                            block_num,
+                            log.address(),
+                            transfer.from,
+                            transfer.to,
+                            transfer.value,
+                            idx as i32,
+                        )
+                        .await?;
                     } else {
                         info!(
                             "Log #{}: Non-Transfer Log (Emitter={:?})",
@@ -62,10 +106,15 @@ async fn main() -> anyhow::Result<()> {
                         );
                     }
                 }
-                break; // stop after inspecting the first transaction with logs
+                // break; // stop after inspecting the first transaction with logs
             }
         }
     }
+    tx_pool.commit().await?;
+    info!(
+        "block {} and its transations persisted successfully!",
+        block_num
+    );
 
     Ok(())
 }
