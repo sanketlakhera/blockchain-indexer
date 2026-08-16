@@ -29,7 +29,7 @@ pub async fn insert_block(
 ) -> Result<()> {
     sqlx::query(
         r#"
-    INSERT INTO blocks (number, hash, parent_hash, timestamp, transaction_count)
+    INSERT INTO blocks (number, hash, parent_hash, timestamp, transactions_count)
     VALUES ($1, $2, $3, $4, $5)
     ON CONFLICT (number) DO NOTHING"#,
     )
@@ -91,7 +91,7 @@ pub async fn insert_erc20_transfer(
 ) -> Result<()> {
     sqlx::query(
     r#"
-    INSERT INTO erc20_transfers (transactions_hash, block_number, contract_address, from_address, to_address, amount, log_index)
+    INSERT INTO erc20_transfers (transaction_hash, block_number, contract_address, from_address, to_address, amount, log_index)
     VALUES ($1, $2, $3, $4, $5, $6::numeric, $7)
     ON CONFLICT (transaction_hash, log_index) DO NOTHING
     "#,)
